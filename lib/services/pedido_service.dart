@@ -1,33 +1,27 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/pedido.dart';
 
-/// Servicio de acceso a datos en la nube con Cloud Firestore.
-/// Gestiona el registro, consulta en tiempo real, actualización de estado y eliminación
-/// de pedidos en la colección `pedidos`.
-///
-/// Autor: Daniel Michel Cruz Verde
+/// Servicio de gestión de pedidos de comida a domicilio.
 class PedidoService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Referencia a la colección principal en Cloud Firestore.
   CollectionReference<Map<String, dynamic>> get _pedidosRef =>
       _db.collection('pedidos');
 
-  /// Registra un nuevo pedido en la nube de Firebase y devuelve el ID del documento.
+  /// Crea un nuevo pedido y devuelve su número de orden.
   Future<String> registrarPedido(Pedido pedido) async {
     if (pedido.clienteNombre.trim().isEmpty ||
         pedido.telefono.trim().isEmpty ||
         pedido.direccion.trim().isEmpty ||
         pedido.platillo.trim().isEmpty) {
-      throw ArgumentError('No se permiten registros con campos obligatorios vacíos.');
+      throw ArgumentError('Por favor completa todos los datos de entrega.');
     }
 
     final docRef = await _pedidosRef.add(pedido.toFirestore());
     return docRef.id;
   }
 
-  /// Obtiene un flujo (Stream) en tiempo real con todos los pedidos almacenados,
-  /// ordenados del más reciente al más antiguo.
+  /// Obtiene la lista de pedidos actualizada en tiempo real.
   Stream<List<Pedido>> obtenerPedidosEnTiempoReal() {
     return _pedidosRef.snapshots().map((snapshot) {
       final lista =
@@ -37,7 +31,7 @@ class PedidoService {
     });
   }
 
-  /// Actualiza el estado de entrega de un pedido ('En preparación', 'En camino', 'Entregado').
+  /// Actualiza el estado de entrega de una orden ('En preparación', 'En camino', 'Entregado').
   Future<void> actualizarEstadoPedido(String pedidoId, String nuevoEstado) async {
     await _pedidosRef.doc(pedidoId).update({
       'estado': nuevoEstado,
@@ -45,7 +39,7 @@ class PedidoService {
     });
   }
 
-  /// Elimina un pedido por su ID en Cloud Firestore.
+  /// Cancela o elimina un pedido del historial.
   Future<void> eliminarPedido(String pedidoId) async {
     await _pedidosRef.doc(pedidoId).delete();
   }

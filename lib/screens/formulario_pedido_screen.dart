@@ -1,13 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/pedido.dart';
 import '../services/pedido_service.dart';
 
-/// Pantalla de Formulario para Registrar un Pedido de Comida a Domicilio
-/// Incluye validaciones de campos obligatorios, formato de teléfono, cantidad y prevención
-/// de registros vacíos.
-///
-/// Autor: Daniel Michel Cruz Verde
+/// Pantalla de Formulario para Realizar un Pedido a Domicilio
 class FormularioPedidoScreen extends StatefulWidget {
   final PlatilloMenu? platilloInicial;
   final VoidCallback? onPedidoGuardado;
@@ -42,7 +39,10 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
   void initState() {
     super.initState();
     _platilloSeleccionado = widget.platilloInicial ?? catalogoPlatillos.first;
-    _clienteController = TextEditingController();
+    final usuarioActual = FirebaseAuth.instance.currentUser;
+    _clienteController = TextEditingController(
+      text: usuarioActual?.displayName ?? '',
+    );
     _telefonoController = TextEditingController();
     _direccionController = TextEditingController();
     _notasController = TextEditingController();
@@ -72,12 +72,11 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
   double get _total => _subtotal + _costoEnvioFijo;
 
   Future<void> _guardarPedido() async {
-    // 1. Validar todos los campos obligatorios del formulario
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Por favor completa correctamente todos los campos obligatorios (*).',
+            'Por favor revisa los datos de entrega marcados como obligatorios.',
           ),
           backgroundColor: Colors.redAccent,
         ),
@@ -90,7 +89,10 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
     });
 
     try {
+      final usuarioActual = FirebaseAuth.instance.currentUser;
       final nuevoPedido = Pedido(
+        usuarioId: usuarioActual?.uid ?? 'invitado',
+        usuarioCorreo: usuarioActual?.email ?? '',
         clienteNombre: _clienteController.text.trim(),
         telefono: _telefonoController.text.trim(),
         direccion: _direccionController.text.trim(),
@@ -102,20 +104,16 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
         total: _total,
         metodoPago: _metodoPago,
         notas: _notasController.text.trim().isEmpty
-            ? 'Sin indicaciones adicionales'
+            ? 'Sin indicaciones especiales'
             : _notasController.text.trim(),
         estado: 'En preparación',
         fechaCreacion: DateTime.now(),
-        registradoPor: 'Daniel Michel Cruz Verde',
       );
 
       final docId = await _pedidoService.registrarPedido(nuevoPedido);
 
       if (!mounted) return;
 
-      // Limpiar formulario tras registro exitoso
-      _formKey.currentState!.reset();
-      _clienteController.clear();
       _telefonoController.clear();
       _direccionController.clear();
       _notasController.clear();
@@ -127,12 +125,12 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '¡Pedido registrado en Firebase! Folio: ${docId.substring(0, 6).toUpperCase()}',
+            '¡Tu pedido #${docId.substring(0, 6).toUpperCase()} está en preparación!',
           ),
           backgroundColor: Colors.green.shade700,
           duration: const Duration(seconds: 4),
           action: SnackBarAction(
-            label: 'VER EN BD',
+            label: 'VER PEDIDO',
             textColor: Colors.white,
             onPressed: () {
               widget.onPedidoGuardado?.call();
@@ -146,7 +144,7 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al guardar en Firebase Firestore: $e'),
+          content: Text('No se pudo procesar tu pedido: $e'),
           backgroundColor: Colors.red.shade800,
         ),
       );
@@ -170,7 +168,7 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Registrar Nuevo Pedido a Domicilio',
+              'Completa tu Pedido',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -178,7 +176,7 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Los campos marcados con (*) son obligatorios y se validan antes de enviarse a Cloud Firestore.',
+              'Elige tu platillo e ingresa la dirección donde deseas recibir tu orden.',
               style: TextStyle(
                 fontSize: 13,
                 color: Colors.grey.shade700,
@@ -203,7 +201,7 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
                         Icon(Icons.fastfood, color: Color(0xFFD84315)),
                         SizedBox(width: 8),
                         Text(
-                          '1. Selección de Platillo y Cantidad *',
+                          'Tu Orden',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
@@ -216,7 +214,7 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
                       initialValue: _platilloSeleccionado,
                       isExpanded: true,
                       decoration: const InputDecoration(
-                        labelText: 'Platillo del Menú *',
+                        labelText: 'Platillo seleccionado',
                         border: OutlineInputBorder(),
                         contentPadding:
                             EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -240,7 +238,7 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Restaurante: ${_platilloSeleccionado.restaurante} • Tiempo: ${_platilloSeleccionado.tiempoEstimado}',
+                      '${_platilloSeleccionado.restaurante} • Entrega estimada: ${_platilloSeleccionado.tiempoEstimado}',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade700,
@@ -251,7 +249,7 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'Cantidad de órdenes:',
+                          'Cantidad:',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                         Row(
@@ -304,10 +302,10 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.person_pin_circle, color: Color(0xFFD84315)),
+                        Icon(Icons.location_on, color: Color(0xFFD84315)),
                         SizedBox(width: 8),
                         Text(
-                          '2. Datos del Cliente y Entrega *',
+                          'Dirección y Contacto de Entrega',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
@@ -317,29 +315,27 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    // Campo Nombre del Cliente
                     TextFormField(
                       controller: _clienteController,
                       textCapitalization: TextCapitalization.words,
                       decoration: const InputDecoration(
-                        labelText: 'Nombre completo del cliente *',
-                        hintText: 'Ej. Daniel Michel Cruz Verde',
+                        labelText: '¿Quién recibe el pedido? *',
+                        hintText: 'Nombre completo',
                         prefixIcon: Icon(Icons.person_outline),
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'El nombre del cliente es obligatorio';
+                          return 'Ingresa el nombre de quien recibe';
                         }
                         if (value.trim().length < 4) {
-                          return 'Ingresa un nombre válido (mínimo 4 caracteres)';
+                          return 'Ingresa un nombre válido (mínimo 4 letras)';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 14),
 
-                    // Campo Teléfono
                     TextFormField(
                       controller: _telefonoController,
                       keyboardType: TextInputType.phone,
@@ -348,50 +344,48 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
                         LengthLimitingTextInputFormatter(10),
                       ],
                       decoration: const InputDecoration(
-                        labelText: 'Teléfono de contacto (10 dígitos) *',
-                        hintText: 'Ej. 4421234567',
+                        labelText: 'Teléfono celular (10 dígitos) *',
+                        hintText: 'Para que el repartidor te contacte al llegar',
                         prefixIcon: Icon(Icons.phone_android),
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'El teléfono es obligatorio para el repartidor';
+                          return 'El teléfono es necesario para la entrega';
                         }
                         if (value.trim().length != 10) {
-                          return 'El teléfono debe tener exactamente 10 dígitos numéricos';
+                          return 'Ingresa un número válido de 10 dígitos';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 14),
 
-                    // Campo Dirección
                     TextFormField(
                       controller: _direccionController,
                       maxLines: 2,
                       decoration: const InputDecoration(
-                        labelText: 'Dirección completa de entrega *',
-                        hintText: 'Calle, número, colonia y referencias del domicilio',
-                        prefixIcon: Icon(Icons.location_on_outlined),
+                        labelText: 'Dirección exacta de entrega *',
+                        hintText: 'Calle, número exterior/interior, colonia y referencias',
+                        prefixIcon: Icon(Icons.home_outlined),
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'La dirección de entrega no puede estar vacía';
+                          return 'Ingresa la dirección a donde enviaremos tu comida';
                         }
                         if (value.trim().length < 10) {
-                          return 'Especifica calle, número y colonia (mínimo 10 caracteres)';
+                          return 'Detalla calle, número y colonia (mínimo 10 caracteres)';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 14),
 
-                    // Método de Pago
                     DropdownButtonFormField<String>(
                       initialValue: _metodoPago,
                       decoration: const InputDecoration(
-                        labelText: 'Método de pago *',
+                        labelText: 'Método de pago',
                         prefixIcon: Icon(Icons.payments_outlined),
                         border: OutlineInputBorder(),
                       ),
@@ -402,11 +396,11 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
                         ),
                         DropdownMenuItem(
                           value: 'Tarjeta en terminal',
-                          child: Text('💳 Tarjeta bancaria (Terminal)'),
+                          child: Text('💳 Tarjeta bancaria al entregar'),
                         ),
                         DropdownMenuItem(
                           value: 'Transferencia SPEI',
-                          child: Text('📲 Transferencia SPEI'),
+                          child: Text('📲 Transferencia bancaria'),
                         ),
                       ],
                       onChanged: (val) {
@@ -417,12 +411,11 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    // Notas adicionales
                     TextFormField(
                       controller: _notasController,
                       decoration: const InputDecoration(
-                        labelText: 'Instrucciones o notas para el restaurante (Opcional)',
-                        hintText: 'Ej. Sin cebolla, salsa extra, tocar timbre 2...',
+                        labelText: 'Notas para el restaurante o repartidor (Opcional)',
+                        hintText: 'Ej. Sin cebolla, salsa aparte, portón blanco...',
                         prefixIcon: Icon(Icons.notes),
                         border: OutlineInputBorder(),
                       ),
@@ -455,7 +448,7 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Costo de envío a domicilio:'),
+                      const Text('Envío a domicilio:'),
                       Text('\$${_costoEnvioFijo.toStringAsFixed(2)} MXN'),
                     ],
                   ),
@@ -464,7 +457,7 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'TOTAL A PAGAR:',
+                        'Total a pagar:',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -486,7 +479,6 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
 
             const SizedBox(height: 20),
 
-            // Botón de Envío a Firebase
             SizedBox(
               width: double.infinity,
               height: 54,
@@ -504,11 +496,11 @@ class _FormularioPedidoScreenState extends State<FormularioPedidoScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(Icons.cloud_upload),
+                    : const Icon(Icons.check_circle_outline),
                 label: Text(
                   _guardando
-                      ? 'Guardando en Cloud Firestore...'
-                      : 'Confirmar y Guardar Pedido en Firebase',
+                      ? 'Enviando tu pedido al restaurante...'
+                      : 'Confirmar Pedido • \$${_total.toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

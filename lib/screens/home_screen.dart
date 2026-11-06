@@ -1,11 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/pedido.dart';
+import '../services/auth_service.dart';
 import '../services/pedido_service.dart';
 import 'formulario_pedido_screen.dart';
 import 'lista_pedidos_screen.dart';
 
-/// Pantalla Principal (Navegación Inferior y Menú de Inicio)
-/// Autor: Daniel Michel Cruz Verde
+/// Pantalla Principal de ProntoBite Delivery
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -17,6 +18,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   PlatilloMenu? _platilloPreseleccionado;
   final PedidoService _pedidoService = PedidoService();
+  final AuthService _authService = AuthService();
 
   void _irAFormularioConPlatillo(PlatilloMenu platillo) {
     setState(() {
@@ -33,8 +35,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final User? usuario = _authService.currentUser;
+    final String nombreSaludo =
+        (usuario?.displayName != null && usuario!.displayName!.trim().isNotEmpty)
+            ? usuario.displayName!
+            : (usuario?.email?.split('@').first ?? 'Cliente');
+
     final List<Widget> paginas = [
       _InicioMenuTab(
+        nombreUsuario: nombreSaludo,
         pedidoService: _pedidoService,
         onSeleccionarPlatillo: _irAFormularioConPlatillo,
         onIrANuevoPedido: () {
@@ -68,23 +77,24 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Icon(Icons.delivery_dining, size: 26),
             ),
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'CruzVerde Delivery',
+                  const Text(
+                    'ProntoBite',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                      fontSize: 19,
                     ),
                   ),
                   Text(
-                    'Daniel Michel Cruz Verde • Cloud Firestore',
-                    style: TextStyle(
-                      fontSize: 11,
+                    'Hola, $nombreSaludo • Entrega inmediata',
+                    style: const TextStyle(
+                      fontSize: 12,
                       color: Colors.white70,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -92,28 +102,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.green.shade700,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.cloud_done, size: 14, color: Colors.white),
-                SizedBox(width: 4),
-                Text(
-                  'En línea',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
+          IconButton(
+            tooltip: 'Cerrar sesión',
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await _authService.cerrarSesion();
+            },
           ),
         ],
       ),
@@ -129,17 +123,17 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.restaurant_menu_outlined),
             selectedIcon: Icon(Icons.restaurant_menu),
-            label: 'Inicio / Menú',
+            label: 'Menú',
           ),
           NavigationDestination(
-            icon: Icon(Icons.add_shopping_cart_outlined),
-            selectedIcon: Icon(Icons.add_shopping_cart),
-            label: 'Registrar Pedido',
+            icon: Icon(Icons.shopping_bag_outlined),
+            selectedIcon: Icon(Icons.shopping_bag),
+            label: 'Hacer Pedido',
           ),
           NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long),
-            label: 'Ver Pedidos (BD)',
+            label: 'Mis Pedidos',
           ),
         ],
       ),
@@ -147,13 +141,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _InicioMenuTab extends StatelessWidget {
+class _InicioMenuTab extends StatefulWidget {
+  final String nombreUsuario;
   final PedidoService pedidoService;
   final ValueChanged<PlatilloMenu> onSeleccionarPlatillo;
   final VoidCallback onIrANuevoPedido;
   final VoidCallback onIrAMisPedidos;
 
   const _InicioMenuTab({
+    required this.nombreUsuario,
     required this.pedidoService,
     required this.onSeleccionarPlatillo,
     required this.onIrANuevoPedido,
@@ -161,13 +157,36 @@ class _InicioMenuTab extends StatelessWidget {
   });
 
   @override
+  State<_InicioMenuTab> createState() => _InicioMenuTabState();
+}
+
+class _InicioMenuTabState extends State<_InicioMenuTab> {
+  String _categoriaSeleccionada = 'Todas';
+
+  List<String> get _categorias => [
+        'Todas',
+        'Mexicana',
+        'Hamburguesas',
+        'Pizzas',
+        'Oriental',
+        'Snacks',
+        'Saludable',
+      ];
+
+  @override
   Widget build(BuildContext context) {
+    final platillosFiltrados = _categoriaSeleccionada == 'Todas'
+        ? catalogoPlatillos
+        : catalogoPlatillos
+            .where((p) => p.categoria == _categoriaSeleccionada)
+            .toList();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Banner de bienvenida con identificación del alumno y proyecto
+          // Banner promocional comercial
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
@@ -193,22 +212,22 @@ class _InicioMenuTab extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.25),
+                    color: Colors.black.withValues(alpha: 0.22),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text(
-                    'Desarrollo Móvil Integral • Saberes Hacer',
+                    '🔥 Envío \$25 MXN en todos los restaurantes',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  '¡Pide tu comida favorita a domicilio!',
-                  style: TextStyle(
+                Text(
+                  '¿Qué se te antoja hoy, ${widget.nombreUsuario}?',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -216,7 +235,7 @@ class _InicioMenuTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Desarrollado por: Daniel Michel Cruz Verde\nConectado en tiempo real a Firebase Cloud Firestore.',
+                  'Platillos recién preparados de tus restaurantes locales favoritos directo a tu puerta.',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 13,
@@ -229,7 +248,7 @@ class _InicioMenuTab extends StatelessWidget {
                   runSpacing: 10,
                   children: [
                     ElevatedButton.icon(
-                      onPressed: onIrANuevoPedido,
+                      onPressed: widget.onIrANuevoPedido,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: const Color(0xFFD84315),
@@ -238,14 +257,14 @@ class _InicioMenuTab extends StatelessWidget {
                           vertical: 10,
                         ),
                       ),
-                      icon: const Icon(Icons.edit_note),
+                      icon: const Icon(Icons.fastfood),
                       label: const Text(
-                        'Nuevo Pedido',
+                        'Ordenar Ahora',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                     OutlinedButton.icon(
-                      onPressed: onIrAMisPedidos,
+                      onPressed: widget.onIrAMisPedidos,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white,
                         side: const BorderSide(color: Colors.white),
@@ -254,8 +273,8 @@ class _InicioMenuTab extends StatelessWidget {
                           vertical: 10,
                         ),
                       ),
-                      icon: const Icon(Icons.storage),
-                      label: const Text('Ver Registros en BD'),
+                      icon: const Icon(Icons.delivery_dining),
+                      label: const Text('Seguir mis Pedidos'),
                     ),
                   ],
                 ),
@@ -265,18 +284,15 @@ class _InicioMenuTab extends StatelessWidget {
 
           const SizedBox(height: 18),
 
-          // Tarjeta de resumen en vivo desde Firestore
+          // Resumen de actividad de pedidos activos
           StreamBuilder<List<Pedido>>(
-            stream: pedidoService.obtenerPedidosEnTiempoReal(),
+            stream: widget.pedidoService.obtenerPedidosEnTiempoReal(),
             builder: (context, snapshot) {
               final pedidos = snapshot.data ?? [];
-              final totalPedidos = pedidos.length;
               final enCurso =
                   pedidos.where((p) => p.estado != 'Entregado').length;
-              final montoTotal = pedidos.fold<double>(
-                0.0,
-                (sum, item) => sum + item.total,
-              );
+              final entregados =
+                  pedidos.where((p) => p.estado == 'Entregado').length;
 
               return Container(
                 padding: const EdgeInsets.all(14),
@@ -289,21 +305,21 @@ class _InicioMenuTab extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _MetricItem(
-                      icon: Icons.receipt_long,
-                      label: 'Pedidos en BD',
-                      value: '$totalPedidos',
+                      icon: Icons.storefront,
+                      label: 'Restaurantes',
+                      value: '${catalogoPlatillos.length}',
                       color: Colors.deepOrange,
                     ),
                     _MetricItem(
                       icon: Icons.delivery_dining,
-                      label: 'En Curso',
+                      label: 'Pedidos en Curso',
                       value: '$enCurso',
-                      color: Colors.amber.shade800,
+                      color: Colors.amber.shade900,
                     ),
                     _MetricItem(
-                      icon: Icons.attach_money,
-                      label: 'Ventas Totales',
-                      value: '\$${montoTotal.toStringAsFixed(0)}',
+                      icon: Icons.check_circle_outline,
+                      label: 'Entregados',
+                      value: '$entregados',
                       color: Colors.green.shade700,
                     ),
                   ],
@@ -312,23 +328,39 @@ class _InicioMenuTab extends StatelessWidget {
             },
           ),
 
-          const SizedBox(height: 22),
+          const SizedBox(height: 20),
+
+          // Filtro por categoría de comida
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _categorias.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final cat = _categorias[index];
+                final activa = _categoriaSeleccionada == cat;
+                return ChoiceChip(
+                  label: Text(cat),
+                  selected: activa,
+                  onSelected: (_) {
+                    setState(() => _categoriaSeleccionada = cat);
+                  },
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 18),
 
           const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Menú Destacado',
+                'Platillos Populares Cerca de Ti',
                 style: TextStyle(
-                  fontSize: 19,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'Toca "Pedir" para autocompletar',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
                 ),
               ),
             ],
@@ -339,10 +371,10 @@ class _InicioMenuTab extends StatelessWidget {
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: catalogoPlatillos.length,
+            itemCount: platillosFiltrados.length,
             separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
-              final item = catalogoPlatillos[index];
+              final item = platillosFiltrados[index];
               return Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(
@@ -353,16 +385,16 @@ class _InicioMenuTab extends StatelessWidget {
                   child: Row(
                     children: [
                       Container(
-                        width: 60,
-                        height: 60,
+                        width: 64,
+                        height: 64,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: Colors.deepOrange.shade50,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                         child: Text(
                           item.emoji,
-                          style: const TextStyle(fontSize: 32),
+                          style: const TextStyle(fontSize: 34),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -377,14 +409,34 @@ class _InicioMenuTab extends StatelessWidget {
                                 fontSize: 15,
                               ),
                             ),
-                            const SizedBox(height: 3),
-                            Text(
-                              '${item.restaurante} • ${item.tiempoEstimado}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade700,
-                                fontWeight: FontWeight.w500,
-                              ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.star_rounded,
+                                  size: 16,
+                                  color: Colors.amber.shade700,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '${item.calificacion}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    '• ${item.restaurante} • ${item.tiempoEstimado}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -407,12 +459,13 @@ class _InicioMenuTab extends StatelessWidget {
                                   ),
                                 ),
                                 FilledButton.tonalIcon(
-                                  onPressed: () => onSeleccionarPlatillo(item),
+                                  onPressed: () =>
+                                      widget.onSeleccionarPlatillo(item),
                                   icon: const Icon(
                                     Icons.add_shopping_cart,
                                     size: 18,
                                   ),
-                                  label: const Text('Pedir ahora'),
+                                  label: const Text('Pedir'),
                                 ),
                               ],
                             ),

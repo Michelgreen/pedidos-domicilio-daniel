@@ -1,9 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Modelo de datos para un Pedido de Comida a Domicilio.
-/// Autor: Daniel Michel Cruz Verde
 class Pedido {
   final String? id;
+  final String usuarioId;
+  final String usuarioCorreo;
   final String clienteNombre;
   final String telefono;
   final String direccion;
@@ -17,10 +18,11 @@ class Pedido {
   final String notas;
   final String estado;
   final DateTime fechaCreacion;
-  final String registradoPor;
 
   Pedido({
     this.id,
+    required this.usuarioId,
+    required this.usuarioCorreo,
     required this.clienteNombre,
     required this.telefono,
     required this.direccion,
@@ -34,14 +36,14 @@ class Pedido {
     required this.notas,
     required this.estado,
     required this.fechaCreacion,
-    this.registradoPor = 'Daniel Michel Cruz Verde',
   });
 
-  /// Convierte un DocumentSnapshot de Cloud Firestore en una instancia de [Pedido].
   factory Pedido.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
     return Pedido(
       id: doc.id,
+      usuarioId: data['usuarioId'] as String? ?? '',
+      usuarioCorreo: data['usuarioCorreo'] as String? ?? '',
       clienteNombre: data['clienteNombre'] as String? ?? '',
       telefono: data['telefono'] as String? ?? '',
       direccion: data['direccion'] as String? ?? '',
@@ -57,14 +59,13 @@ class Pedido {
       fechaCreacion: data['fechaCreacion'] is Timestamp
           ? (data['fechaCreacion'] as Timestamp).toDate()
           : DateTime.now(),
-      registradoPor:
-          data['registradoPor'] as String? ?? 'Daniel Michel Cruz Verde',
     );
   }
 
-  /// Convierte la instancia de [Pedido] a un mapa compatible con Cloud Firestore.
   Map<String, dynamic> toFirestore() {
     return {
+      'usuarioId': usuarioId,
+      'usuarioCorreo': usuarioCorreo.trim(),
       'clienteNombre': clienteNombre.trim(),
       'telefono': telefono.trim(),
       'direccion': direccion.trim(),
@@ -78,12 +79,11 @@ class Pedido {
       'notas': notas.trim(),
       'estado': estado,
       'fechaCreacion': Timestamp.fromDate(fechaCreacion),
-      'registradoPor': registradoPor,
     };
   }
 }
 
-/// Catálogo de platillos disponibles en el menú para selección rápida.
+/// Catálogo de platillos disponibles en el menú.
 class PlatilloMenu {
   final String nombre;
   final String restaurante;
@@ -92,6 +92,7 @@ class PlatilloMenu {
   final String descripcion;
   final String emoji;
   final String tiempoEstimado;
+  final double calificacion;
 
   const PlatilloMenu({
     required this.nombre,
@@ -101,45 +102,50 @@ class PlatilloMenu {
     required this.descripcion,
     required this.emoji,
     required this.tiempoEstimado,
+    required this.calificacion,
   });
 }
 
 const List<PlatilloMenu> catalogoPlatillos = [
   PlatilloMenu(
     nombre: 'Combo Tacos al Pastor (5 pzas + Refresco)',
-    restaurante: 'Taquería El Fogón de Daniel',
+    restaurante: 'Taquería El Fogón Tradicional',
     categoria: 'Mexicana',
     precio: 135.0,
-    descripcion: 'Con piña, cilantro, cebolla y salsa artesanal.',
+    descripcion: 'Con piña asada, cilantro, cebolla y salsa artesanal de la casa.',
     emoji: '🌮',
     tiempoEstimado: '20-30 min',
+    calificacion: 4.9,
   ),
   PlatilloMenu(
     nombre: 'Hamburguesa Doble Queso & Tocino + Papas',
-    restaurante: 'Cruz Verde Burger Grill',
+    restaurante: 'Urban Burger Grill',
     categoria: 'Hamburguesas',
     precio: 185.0,
-    descripcion: 'Carne Angus 200g, queso cheddar, tocino crujiente y papas.',
+    descripcion: 'Carne Angus 200g, queso cheddar, tocino crujiente y papas gajo.',
     emoji: '🍔',
     tiempoEstimado: '25-35 min',
+    calificacion: 4.8,
   ),
   PlatilloMenu(
     nombre: 'Pizza Pepperoni Familiar Orilla de Queso',
-    restaurante: 'Pizzería Bella Napoli Express',
+    restaurante: 'Pizzería Bella Napoli',
     categoria: 'Pizzas',
     precio: 220.0,
-    descripcion: '8 rebanadas grandes con mozzarella 100% y pepperoni.',
+    descripcion: '8 rebanadas grandes con queso mozzarella 100% y pepperoni.',
     emoji: '🍕',
     tiempoEstimado: '30-40 min',
+    calificacion: 4.7,
   ),
   PlatilloMenu(
     nombre: 'Rollo Sushi Dragón Crunch (10 bocados)',
     restaurante: 'Sakura Sushi & Wok',
     categoria: 'Oriental',
     precio: 165.0,
-    descripcion: 'Camarón empanizado, aguacate, queso crema y salsa anguila.',
+    descripcion: 'Camarón empanizado, aguacate, queso crema y salsa de anguila.',
     emoji: '🍣',
     tiempoEstimado: '25-35 min',
+    calificacion: 4.9,
   ),
   PlatilloMenu(
     nombre: 'Alitas BBQ & Buffalo (12 piezas + Aderezo)',
@@ -149,14 +155,16 @@ const List<PlatilloMenu> catalogoPlatillos = [
     descripcion: 'Acompañadas de bastones de apio, zanahoria y aderezo ranch.',
     emoji: '🍗',
     tiempoEstimado: '20-30 min',
+    calificacion: 4.6,
   ),
   PlatilloMenu(
     nombre: 'Ensalada César con Pollo a la Parrilla',
-    restaurante: 'Green Bowl Saludable',
+    restaurante: 'Green Bowl Kitchen',
     categoria: 'Saludable',
     precio: 145.0,
-    descripcion: 'Pechuga grill, lechuga fresca, crutones, parmesano y aderezo.',
+    descripcion: 'Pechuga grill, lechuga fresca, crutones, parmesano y aderezo César.',
     emoji: '🥗',
     tiempoEstimado: '15-25 min',
+    calificacion: 4.8,
   ),
 ];

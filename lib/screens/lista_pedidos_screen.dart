@@ -3,8 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/pedido.dart';
 import '../services/pedido_service.dart';
 
-/// Apartado de Visualización de Información en Tiempo Real desde Cloud Firestore
-/// Autor: Daniel Michel Cruz Verde
+/// Pantalla de Seguimiento e Historial de Pedidos del Cliente
 class ListaPedidosScreen extends StatefulWidget {
   const ListaPedidosScreen({super.key});
 
@@ -54,7 +53,7 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
 
     return Column(
       children: [
-        // Encabezado y filtros de estado
+        // Encabezado y filtros de seguimiento
         Container(
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
@@ -64,14 +63,14 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.cloud_sync, color: Color(0xFFD84315), size: 20),
+                  Icon(Icons.delivery_dining, color: Color(0xFFD84315), size: 22),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Registros en Cloud Firestore (Colección: pedidos)',
+                      'Seguimiento de Mis Pedidos',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                        fontSize: 16,
                       ),
                     ),
                   ),
@@ -105,7 +104,7 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
           ),
         ),
 
-        // StreamBuilder conectado a Firebase Cloud Firestore
+        // Lista de órdenes en tiempo real
         Expanded(
           child: StreamBuilder<List<Pedido>>(
             stream: _pedidoService.obtenerPedidosEnTiempoReal(),
@@ -118,13 +117,13 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
-                          Icons.error_outline,
+                          Icons.wifi_off_rounded,
                           color: Colors.red,
                           size: 48,
                         ),
                         const SizedBox(height: 12),
                         const Text(
-                          'Error al consultar Cloud Firestore',
+                          'No se pudieron cargar tus pedidos',
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.bold,
@@ -132,7 +131,7 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '${snapshot.error}',
+                          'Verifica tu conexión a internet e inténtalo de nuevo.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.grey.shade700),
                         ),
@@ -149,7 +148,7 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                     children: [
                       CircularProgressIndicator(),
                       SizedBox(height: 12),
-                      Text('Sincronizando con Firebase Cloud Firestore...'),
+                      Text('Actualizando el estado de tus pedidos...'),
                     ],
                   ),
                 );
@@ -170,13 +169,13 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.receipt_long_outlined,
+                          Icons.fastfood_outlined,
                           size: 64,
                           color: Colors.grey.shade400,
                         ),
                         const SizedBox(height: 12),
                         const Text(
-                          'Aún no hay pedidos registrados en este filtro',
+                          'Aún no tienes pedidos en esta sección',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -184,7 +183,7 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Registra un nuevo pedido desde la pestaña "Registrar Pedido" para verlo reflejado en tiempo real en Firebase.',
+                          'Explora el menú y pide tu comida favorita para seguir su entrega desde aquí.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.grey.shade600),
                         ),
@@ -212,7 +211,7 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Cabecera con ID de Firestore y Badge de Estado
+                          // Cabecera con Número de Orden y Estado
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -228,11 +227,10 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
-                                      'ID: ${pedido.id != null && pedido.id!.length >= 6 ? pedido.id!.substring(0, 6).toUpperCase() : pedido.id ?? ''}',
+                                      'Orden #${pedido.id != null && pedido.id!.length >= 6 ? pedido.id!.substring(0, 6).toUpperCase() : pedido.id ?? ''}',
                                       style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
-                                        fontFamily: 'monospace',
                                       ),
                                     ),
                                   ),
@@ -280,7 +278,7 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                           ),
                           const Divider(height: 18),
 
-                          // Platillo y Cantidad
+                          // Platillo y Restaurante
                           Text(
                             '${pedido.cantidad}x ${pedido.platillo}',
                             style: const TextStyle(
@@ -299,18 +297,18 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                           ),
                           const SizedBox(height: 10),
 
-                          // Información del Cliente y Domicilio
+                          // Información de Entrega
                           Row(
                             children: [
                               const Icon(
-                                Icons.person,
+                                Icons.person_outline,
                                 size: 16,
                                 color: Colors.grey,
                               ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
-                                  'Cliente: ${pedido.clienteNombre} • Tel: ${pedido.telefono}',
+                                  'Recibe: ${pedido.clienteNombre} (${pedido.telefono})',
                                   style: const TextStyle(fontSize: 13),
                                 ),
                               ),
@@ -321,14 +319,14 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Icon(
-                                Icons.location_on,
+                                Icons.location_on_outlined,
                                 size: 16,
                                 color: Colors.grey,
                               ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
-                                  'Entrega: ${pedido.direccion}',
+                                  'Domicilio: ${pedido.direccion}',
                                   style: const TextStyle(fontSize: 13),
                                 ),
                               ),
@@ -359,7 +357,7 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                           ],
                           const SizedBox(height: 12),
 
-                          // Pie de tarjeta con Total y Botones de Acción
+                          // Total y acciones sobre el pedido
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -396,16 +394,21 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                                           nuevo,
                                         );
                                       },
-                                      icon: const Icon(Icons.sync, size: 16),
+                                      icon: const Icon(
+                                        Icons.local_shipping_outlined,
+                                        size: 16,
+                                      ),
                                       label: Text(
-                                        'Pasar a ${_siguienteEstado(pedido.estado)}',
+                                        pedido.estado == 'Entregado'
+                                            ? 'Repetir preparación'
+                                            : 'Marcar ${_siguienteEstado(pedido.estado)}',
                                         style: const TextStyle(fontSize: 12),
                                       ),
                                     ),
                                   const SizedBox(width: 6),
                                   if (pedido.id != null)
                                     IconButton(
-                                      tooltip: 'Eliminar registro de Firebase',
+                                      tooltip: 'Cancelar pedido',
                                       icon: const Icon(
                                         Icons.delete_outline,
                                         color: Colors.redAccent,
