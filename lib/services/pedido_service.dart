@@ -21,26 +21,62 @@ class PedidoService {
     return docRef.id;
   }
 
-  /// Obtiene la lista de pedidos actualizada en tiempo real.
-  Stream<List<Pedido>> obtenerPedidosEnTiempoReal() {
+  /// Obtiene la lista de pedidos en tiempo real.
+  /// - Si `esAdmin` es `true`, devuelve todos los pedidos de todos los clientes.
+  /// - Si es un cliente normal, devuelve únicamente sus propios pedidos.
+  Stream<List<Pedido>> obtenerPedidosEnTiempoReal({
+    String? usuarioId,
+    bool esAdmin = false,
+  }) {
     return _pedidosRef.snapshots().map((snapshot) {
-      final lista =
+      var lista =
           snapshot.docs.map((doc) => Pedido.fromFirestore(doc)).toList();
+
+      if (!esAdmin && usuarioId != null && usuarioId.isNotEmpty) {
+        lista = lista.where((p) => p.usuarioId == usuarioId).toList();
+      }
+
       lista.sort((a, b) => b.fechaCreacion.compareTo(a.fechaCreacion));
       return lista;
     });
   }
 
-  /// Actualiza el estado de entrega de una orden ('En preparación', 'En camino', 'Entregado').
-  Future<void> actualizarEstadoPedido(String pedidoId, String nuevoEstado) async {
+  /// (Solo Admin) Actualiza el estado de entrega de una orden
+  /// ('En preparación', 'En camino', 'Entregado').
+  Future<void> actualizarEstadoPedido(
+    String pedidoId,
+    String nuevoEstado,
+  ) async {
     await _pedidosRef.doc(pedidoId).update({
       'estado': nuevoEstado,
       'ultimaActualizacion': FieldValue.serverTimestamp(),
     });
   }
 
-  /// Cancela o elimina un pedido del historial.
-  Future<void> eliminarPedido(String pedidoId) async {
-    await _pedidosRef.doc(pedidoId).delete();
+  /// (Cliente) Cancela un pedido únicamente si todavía se encuentra 'En preparación'.
+  Future<void> cancelarPedidoCliente(Pedido pedido) async {
+    if (pedido.id == null) return;
+    if (pedido.estado != 'En preparación') {
+      throw StateError(
+        'Solo se pueden cancelar pedidos que aún están en preparación.',
+      );
+    }
+
+    await _pedidosRef.doc(pedido.id!).update({
+      'estado': 'Cancelado',
+      'ultimaActualizacion': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// (Solo Admin) Elimina definitivamente un pedido que ya fue 'Cancelado'.
+  Future<void> eliminarPedidoCancelado(Pedido pedido) async {
+    if (pedido.id == null) return;
+    if (pedido.estado != 'Cancelado') {
+      throw StateError(
+        'Solo se pueden eliminar pedidos que hayan sido cancelados.',
+      );
+    }
+
+    await _pedidosRef.doc(pedido.id!).delete();
   }
 }

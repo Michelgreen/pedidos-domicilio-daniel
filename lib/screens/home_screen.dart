@@ -36,14 +36,19 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final User? usuario = _authService.currentUser;
-    final String nombreSaludo =
-        (usuario?.displayName != null && usuario!.displayName!.trim().isNotEmpty)
+    final bool esAdmin = _authService.esAdmin;
+    final String nombreSaludo = esAdmin
+        ? 'Administrador'
+        : ((usuario?.displayName != null &&
+                usuario!.displayName!.trim().isNotEmpty)
             ? usuario.displayName!
-            : (usuario?.email?.split('@').first ?? 'Cliente');
+            : (usuario?.email?.split('@').first ?? 'Cliente'));
 
     final List<Widget> paginas = [
       _InicioMenuTab(
         nombreUsuario: nombreSaludo,
+        usuarioId: usuario?.uid,
+        esAdmin: esAdmin,
         pedidoService: _pedidoService,
         onSeleccionarPlatillo: _irAFormularioConPlatillo,
         onIrANuevoPedido: () {
@@ -81,15 +86,42 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'ProntoBite',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 19,
-                    ),
+                  Row(
+                    children: [
+                      const Text(
+                        'ProntoBite',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 19,
+                        ),
+                      ),
+                      if (esAdmin) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade700,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text(
+                            'ADMIN',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   Text(
-                    'Hola, $nombreSaludo • Entrega inmediata',
+                    esAdmin
+                        ? 'Panel de Gestión de Pedidos (${usuario?.email ?? ''})'
+                        : 'Hola, $nombreSaludo • Entrega inmediata',
                     style: const TextStyle(
                       fontSize: 12,
                       color: Colors.white70,
@@ -119,21 +151,21 @@ class _HomeScreenState extends State<HomeScreen> {
             _selectedIndex = index;
           });
         },
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.restaurant_menu_outlined),
             selectedIcon: Icon(Icons.restaurant_menu),
             label: 'Menú',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.shopping_bag_outlined),
             selectedIcon: Icon(Icons.shopping_bag),
             label: 'Hacer Pedido',
           ),
           NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: 'Mis Pedidos',
+            icon: const Icon(Icons.receipt_long_outlined),
+            selectedIcon: const Icon(Icons.receipt_long),
+            label: esAdmin ? 'Gestionar Pedidos' : 'Mis Pedidos',
           ),
         ],
       ),
@@ -143,6 +175,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _InicioMenuTab extends StatefulWidget {
   final String nombreUsuario;
+  final String? usuarioId;
+  final bool esAdmin;
   final PedidoService pedidoService;
   final ValueChanged<PlatilloMenu> onSeleccionarPlatillo;
   final VoidCallback onIrANuevoPedido;
@@ -150,6 +184,8 @@ class _InicioMenuTab extends StatefulWidget {
 
   const _InicioMenuTab({
     required this.nombreUsuario,
+    required this.usuarioId,
+    required this.esAdmin,
     required this.pedidoService,
     required this.onSeleccionarPlatillo,
     required this.onIrANuevoPedido,
@@ -215,9 +251,11 @@ class _InicioMenuTabState extends State<_InicioMenuTab> {
                     color: Colors.black.withValues(alpha: 0.22),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
-                    '🔥 Envío \$25 MXN en todos los restaurantes',
-                    style: TextStyle(
+                  child: Text(
+                    widget.esAdmin
+                        ? '⚡ Modo Administrador Activo'
+                        : '🔥 Envío \$25 MXN en todos los restaurantes',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -226,7 +264,9 @@ class _InicioMenuTabState extends State<_InicioMenuTab> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  '¿Qué se te antoja hoy, ${widget.nombreUsuario}?',
+                  widget.esAdmin
+                      ? 'Panel de Control de Órdenes'
+                      : '¿Qué se te antoja hoy, ${widget.nombreUsuario}?',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
@@ -234,9 +274,11 @@ class _InicioMenuTabState extends State<_InicioMenuTab> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'Platillos recién preparados de tus restaurantes locales favoritos directo a tu puerta.',
-                  style: TextStyle(
+                Text(
+                  widget.esAdmin
+                      ? 'Administra el estado de los pedidos de los clientes (En preparación, En camino, Entregado) y depura órdenes canceladas.'
+                      : 'Platillos recién preparados de tus restaurantes locales favoritos directo a tu puerta.',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 13,
                     height: 1.4,
@@ -248,7 +290,9 @@ class _InicioMenuTabState extends State<_InicioMenuTab> {
                   runSpacing: 10,
                   children: [
                     ElevatedButton.icon(
-                      onPressed: widget.onIrANuevoPedido,
+                      onPressed: widget.esAdmin
+                          ? widget.onIrAMisPedidos
+                          : widget.onIrANuevoPedido,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: const Color(0xFFD84315),
@@ -257,25 +301,30 @@ class _InicioMenuTabState extends State<_InicioMenuTab> {
                           vertical: 10,
                         ),
                       ),
-                      icon: const Icon(Icons.fastfood),
-                      label: const Text(
-                        'Ordenar Ahora',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      icon: Icon(
+                        widget.esAdmin ? Icons.assignment : Icons.fastfood,
+                      ),
+                      label: Text(
+                        widget.esAdmin
+                            ? 'Administrar Pedidos'
+                            : 'Ordenar Ahora',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: widget.onIrAMisPedidos,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
+                    if (!widget.esAdmin)
+                      OutlinedButton.icon(
+                        onPressed: widget.onIrAMisPedidos,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.white),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
                         ),
+                        icon: const Icon(Icons.delivery_dining),
+                        label: const Text('Seguir mis Pedidos'),
                       ),
-                      icon: const Icon(Icons.delivery_dining),
-                      label: const Text('Seguir mis Pedidos'),
-                    ),
                   ],
                 ),
               ],
@@ -286,11 +335,18 @@ class _InicioMenuTabState extends State<_InicioMenuTab> {
 
           // Resumen de actividad de pedidos activos
           StreamBuilder<List<Pedido>>(
-            stream: widget.pedidoService.obtenerPedidosEnTiempoReal(),
+            stream: widget.pedidoService.obtenerPedidosEnTiempoReal(
+              usuarioId: widget.usuarioId,
+              esAdmin: widget.esAdmin,
+            ),
             builder: (context, snapshot) {
               final pedidos = snapshot.data ?? [];
-              final enCurso =
-                  pedidos.where((p) => p.estado != 'Entregado').length;
+              final enCurso = pedidos
+                  .where(
+                    (p) =>
+                        p.estado == 'En preparación' || p.estado == 'En camino',
+                  )
+                  .length;
               final entregados =
                   pedidos.where((p) => p.estado == 'Entregado').length;
 

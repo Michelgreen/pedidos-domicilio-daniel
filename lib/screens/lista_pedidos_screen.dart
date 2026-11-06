@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/pedido.dart';
+import '../services/auth_service.dart';
 import '../services/pedido_service.dart';
 
-/// Pantalla de Seguimiento e Historial de Pedidos del Cliente
+/// Pantalla de Seguimiento de Pedidos (Modo Cliente y Modo Administrador)
 class ListaPedidosScreen extends StatefulWidget {
   const ListaPedidosScreen({super.key});
 
@@ -13,6 +14,7 @@ class ListaPedidosScreen extends StatefulWidget {
 
 class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
   final PedidoService _pedidoService = PedidoService();
+  final AuthService _authService = AuthService();
   String _filtroEstado = 'Todos';
 
   Color _colorPorEstado(String estado) {
@@ -23,6 +25,8 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
         return Colors.blue.shade700;
       case 'Entregado':
         return Colors.green.shade700;
+      case 'Cancelado':
+        return Colors.red.shade700;
       default:
         return Colors.grey.shade700;
     }
@@ -36,20 +40,106 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
         return Icons.delivery_dining;
       case 'Entregado':
         return Icons.check_circle;
+      case 'Cancelado':
+        return Icons.cancel_outlined;
       default:
         return Icons.receipt;
     }
   }
 
-  String _siguienteEstado(String actual) {
-    if (actual == 'En preparación') return 'En camino';
-    if (actual == 'En camino') return 'Entregado';
-    return 'En preparación';
+  Future<void> _confirmarCancelacionCliente(Pedido pedido) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Cancelar tu pedido?'),
+        content: Text(
+          'Tu pedido de "${pedido.platillo}" aún está en preparación. ¿Confirmas que deseas cancelarlo?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('No, conservar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Sí, cancelar pedido'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      await _pedidoService.cancelarPedidoCliente(pedido);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tu pedido ha sido cancelado.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo cancelar el pedido: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmarEliminacionAdmin(Pedido pedido) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar pedido cancelado'),
+        content: Text(
+          '¿Deseas eliminar permanentemente la orden cancelada de ${pedido.clienteNombre}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade800),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Eliminar definitivamente'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      await _pedidoService.eliminarPedidoCancelado(pedido);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pedido cancelado eliminado del sistema.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al eliminar: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final formatoFecha = DateFormat('dd/MM/yyyy HH:mm');
+    final bool esAdmin = _authService.esAdmin;
+    final String? uidActual = _authService.currentUser?.uid;
 
     return Column(
       children: [
@@ -61,14 +151,20 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.delivery_dining, color: Color(0xFFD84315), size: 22),
-                  SizedBox(width: 8),
+                  Icon(
+                    esAdmin ? Icons.admin_panel_settings : Icons.delivery_dining,
+                    color: const Color(0xFFD84315),
+                    size: 22,
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Seguimiento de Mis Pedidos',
-                      style: TextStyle(
+                      esAdmin
+                          ? 'Administración de Pedidos de Clientes'
+                          : 'Seguimiento de Mis Pedidos',
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -85,6 +181,7 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                     'En preparación',
                     'En camino',
                     'Entregado',
+                    'Cancelado',
                   ].map((estado) {
                     final seleccionado = _filtroEstado == estado;
                     return Padding(
@@ -107,7 +204,10 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
         // Lista de órdenes en tiempo real
         Expanded(
           child: StreamBuilder<List<Pedido>>(
-            stream: _pedidoService.obtenerPedidosEnTiempoReal(),
+            stream: _pedidoService.obtenerPedidosEnTiempoReal(
+              usuarioId: uidActual,
+              esAdmin: esAdmin,
+            ),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return Center(
@@ -123,7 +223,7 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                         ),
                         const SizedBox(height: 12),
                         const Text(
-                          'No se pudieron cargar tus pedidos',
+                          'No se pudieron cargar los pedidos',
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.bold,
@@ -148,7 +248,7 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                     children: [
                       CircularProgressIndicator(),
                       SizedBox(height: 12),
-                      Text('Actualizando el estado de tus pedidos...'),
+                      Text('Actualizando el estado de los pedidos...'),
                     ],
                   ),
                 );
@@ -175,7 +275,7 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                         ),
                         const SizedBox(height: 12),
                         const Text(
-                          'Aún no tienes pedidos en esta sección',
+                          'Aún no hay pedidos en esta sección',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -183,7 +283,9 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Explora el menú y pide tu comida favorita para seguir su entrega desde aquí.',
+                          esAdmin
+                              ? 'Cuando los clientes realicen pedidos, aparecerán aquí en tiempo real para que gestiones su envío.'
+                              : 'Explora el menú y pide tu comida favorita para seguir su entrega desde aquí.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.grey.shade600),
                         ),
@@ -281,9 +383,12 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                           // Platillo y Restaurante
                           Text(
                             '${pedido.cantidad}x ${pedido.platillo}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
+                              decoration: pedido.estado == 'Cancelado'
+                                  ? TextDecoration.lineThrough
+                                  : null,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -308,7 +413,9 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
-                                  'Recibe: ${pedido.clienteNombre} (${pedido.telefono})',
+                                  esAdmin && pedido.usuarioCorreo.isNotEmpty
+                                      ? 'Cliente: ${pedido.clienteNombre} (${pedido.telefono}) • ${pedido.usuarioCorreo}'
+                                      : 'Recibe: ${pedido.clienteNombre} (${pedido.telefono})',
                                   style: const TextStyle(fontSize: 13),
                                 ),
                               ),
@@ -357,9 +464,12 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                           ],
                           const SizedBox(height: 12),
 
-                          // Total y acciones sobre el pedido
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          // Pie de tarjeta con Total y Controles según Rol (Cliente vs Admin)
+                          Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 10,
+                            runSpacing: 10,
                             children: [
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,45 +491,131 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                                   ),
                                 ],
                               ),
-                              Row(
-                                children: [
-                                  if (pedido.id != null)
-                                    OutlinedButton.icon(
-                                      onPressed: () async {
-                                        final nuevo =
-                                            _siguienteEstado(pedido.estado);
-                                        await _pedidoService
-                                            .actualizarEstadoPedido(
-                                          pedido.id!,
-                                          nuevo,
-                                        );
-                                      },
-                                      icon: const Icon(
-                                        Icons.local_shipping_outlined,
-                                        size: 16,
-                                      ),
-                                      label: Text(
-                                        pedido.estado == 'Entregado'
-                                            ? 'Repetir preparación'
-                                            : 'Marcar ${_siguienteEstado(pedido.estado)}',
-                                        style: const TextStyle(fontSize: 12),
+
+                              // ACCIONES PARA CLIENTE NORMAL:
+                              // Solo puede cancelar cuando el pedido está 'En preparación'.
+                              if (!esAdmin) ...[
+                                if (pedido.estado == 'En preparación')
+                                  OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _confirmarCancelacionCliente(pedido),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.red.shade700,
+                                      side: BorderSide(
+                                        color: Colors.red.shade300,
                                       ),
                                     ),
-                                  const SizedBox(width: 6),
-                                  if (pedido.id != null)
-                                    IconButton(
-                                      tooltip: 'Cancelar pedido',
-                                      icon: const Icon(
-                                        Icons.delete_outline,
-                                        color: Colors.redAccent,
-                                      ),
-                                      onPressed: () async {
-                                        await _pedidoService
-                                            .eliminarPedido(pedido.id!);
-                                      },
+                                    icon: const Icon(
+                                      Icons.cancel_outlined,
+                                      size: 17,
                                     ),
-                                ],
-                              ),
+                                    label: const Text('Cancelar pedido'),
+                                  )
+                                else if (pedido.estado == 'En camino')
+                                  Text(
+                                    '🛵 Tu repartidor va en camino',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                  )
+                                else if (pedido.estado == 'Entregado')
+                                  Text(
+                                    '✅ Pedido entregado',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.green.shade700,
+                                    ),
+                                  )
+                                else if (pedido.estado == 'Cancelado')
+                                  Text(
+                                    'Pedido cancelado',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.red.shade700,
+                                    ),
+                                  ),
+                              ],
+
+                              // ACCIONES EXCLUSIVAS DEL ADMINISTRADOR:
+                              // - Cambiar el estado de los pedidos activos ('En preparación' -> 'En camino' -> 'Entregado')
+                              // - Eliminar únicamente los pedidos que están 'Cancelado'
+                              if (esAdmin && pedido.id != null) ...[
+                                if (pedido.estado != 'Cancelado')
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text(
+                                        'Cambiar estado: ',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      DropdownButton<String>(
+                                        value: [
+                                          'En preparación',
+                                          'En camino',
+                                          'Entregado',
+                                        ].contains(pedido.estado)
+                                            ? pedido.estado
+                                            : 'En preparación',
+                                        underline: Container(
+                                          height: 1,
+                                          color: const Color(0xFFD84315),
+                                        ),
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFFD84315),
+                                        ),
+                                        items: const [
+                                          DropdownMenuItem(
+                                            value: 'En preparación',
+                                            child: Text('🍳 En preparación'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'En camino',
+                                            child: Text('🛵 En camino'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'Entregado',
+                                            child: Text('✅ Entregado'),
+                                          ),
+                                        ],
+                                        onChanged: (nuevoEstado) async {
+                                          if (nuevoEstado != null &&
+                                              nuevoEstado != pedido.estado) {
+                                            await _pedidoService
+                                                .actualizarEstadoPedido(
+                                              pedido.id!,
+                                              nuevoEstado,
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                if (pedido.estado == 'Cancelado')
+                                  FilledButton.tonalIcon(
+                                    onPressed: () =>
+                                        _confirmarEliminacionAdmin(pedido),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Colors.red.shade50,
+                                      foregroundColor: Colors.red.shade800,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.delete_forever,
+                                      size: 18,
+                                    ),
+                                    label: const Text(
+                                      'Eliminar pedido cancelado',
+                                    ),
+                                  ),
+                              ],
                             ],
                           ),
                         ],
