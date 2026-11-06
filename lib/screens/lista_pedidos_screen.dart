@@ -380,7 +380,7 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                           ),
                           const Divider(height: 18),
 
-                          // Platillo y Restaurante
+                          // Platillo
                           Text(
                             '${pedido.cantidad}x ${pedido.platillo}',
                             style: TextStyle(
@@ -389,15 +389,6 @@ class _ListaPedidosScreenState extends State<ListaPedidosScreen> {
                               decoration: pedido.estado == 'Cancelado'
                                   ? TextDecoration.lineThrough
                                   : null,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            pedido.restaurante,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.deepOrange.shade700,
-                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 10),

@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Modelo de datos para un Pedido de Comida a Domicilio.
+/// Modelo de datos para un Pedido del Restaurante a Domicilio.
 class Pedido {
   final String? id;
   final String usuarioId;
@@ -8,7 +8,6 @@ class Pedido {
   final String clienteNombre;
   final String telefono;
   final String direccion;
-  final String restaurante;
   final String platillo;
   final double precioUnitario;
   final int cantidad;
@@ -26,7 +25,6 @@ class Pedido {
     required this.clienteNombre,
     required this.telefono,
     required this.direccion,
-    required this.restaurante,
     required this.platillo,
     required this.precioUnitario,
     required this.cantidad,
@@ -47,7 +45,6 @@ class Pedido {
       clienteNombre: data['clienteNombre'] as String? ?? '',
       telefono: data['telefono'] as String? ?? '',
       direccion: data['direccion'] as String? ?? '',
-      restaurante: data['restaurante'] as String? ?? '',
       platillo: data['platillo'] as String? ?? '',
       precioUnitario: (data['precioUnitario'] as num?)?.toDouble() ?? 0.0,
       cantidad: (data['cantidad'] as num?)?.toInt() ?? 1,
@@ -69,7 +66,6 @@ class Pedido {
       'clienteNombre': clienteNombre.trim(),
       'telefono': telefono.trim(),
       'direccion': direccion.trim(),
-      'restaurante': restaurante.trim(),
       'platillo': platillo.trim(),
       'precioUnitario': precioUnitario,
       'cantidad': cantidad,
@@ -83,88 +79,146 @@ class Pedido {
   }
 }
 
-/// Catálogo de platillos disponibles en el menú.
+/// Modelo de un Platillo del Menú del Restaurante (almacenado en Firestore).
 class PlatilloMenu {
+  final String? id;
   final String nombre;
-  final String restaurante;
   final String categoria;
   final double precio;
   final String descripcion;
   final String emoji;
   final String tiempoEstimado;
-  final double calificacion;
+  final bool disponible;
 
   const PlatilloMenu({
+    this.id,
     required this.nombre,
-    required this.restaurante,
     required this.categoria,
     required this.precio,
     required this.descripcion,
     required this.emoji,
     required this.tiempoEstimado,
-    required this.calificacion,
+    this.disponible = true,
   });
+
+  factory PlatilloMenu.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return PlatilloMenu(
+      id: doc.id,
+      nombre: data['nombre'] as String? ?? '',
+      categoria: data['categoria'] as String? ?? 'Especialidades',
+      precio: (data['precio'] as num?)?.toDouble() ?? 0.0,
+      descripcion: data['descripcion'] as String? ?? '',
+      emoji: data['emoji'] as String? ?? '🍽️',
+      tiempoEstimado: data['tiempoEstimado'] as String? ?? '20-30 min',
+      disponible: data['disponible'] as bool? ?? true,
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'nombre': nombre.trim(),
+      'categoria': categoria.trim(),
+      'precio': precio,
+      'descripcion': descripcion.trim(),
+      'emoji': emoji.trim(),
+      'tiempoEstimado': tiempoEstimado.trim(),
+      'disponible': disponible,
+    };
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlatilloMenu &&
+          runtimeType == other.runtimeType &&
+          nombre == other.nombre;
+
+  @override
+  int get hashCode => nombre.hashCode;
 }
 
-const List<PlatilloMenu> catalogoPlatillos = [
+/// Modelo de Cliente Registrado en la aplicación del restaurante.
+class ClienteRegistrado {
+  final String uid;
+  final String nombre;
+  final String telefono;
+  final String correo;
+  final String rol;
+  final DateTime fechaRegistro;
+
+  ClienteRegistrado({
+    required this.uid,
+    required this.nombre,
+    required this.telefono,
+    required this.correo,
+    required this.rol,
+    required this.fechaRegistro,
+  });
+
+  factory ClienteRegistrado.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return ClienteRegistrado(
+      uid: doc.id,
+      nombre: data['nombre'] as String? ?? 'Cliente',
+      telefono: data['telefono'] as String? ?? 'Sin teléfono',
+      correo: data['correo'] as String? ?? '',
+      rol: data['rol'] as String? ?? 'cliente',
+      fechaRegistro: data['fechaRegistro'] is Timestamp
+          ? (data['fechaRegistro'] as Timestamp).toDate()
+          : DateTime.now(),
+    );
+  }
+}
+
+/// Menú base inicial del restaurante (se carga automáticamente si el menú está vacío).
+const List<PlatilloMenu> catalogoPlatillosInicial = [
   PlatilloMenu(
-    nombre: 'Combo Tacos al Pastor (5 pzas + Refresco)',
-    restaurante: 'Taquería El Fogón Tradicional',
-    categoria: 'Mexicana',
+    nombre: 'Orden de Tacos al Pastor (5 pzas + Bebida)',
+    categoria: 'Tacos y Parrilla',
     precio: 135.0,
     descripcion: 'Con piña asada, cilantro, cebolla y salsa artesanal de la casa.',
     emoji: '🌮',
-    tiempoEstimado: '20-30 min',
-    calificacion: 4.9,
+    tiempoEstimado: '20-25 min',
   ),
   PlatilloMenu(
-    nombre: 'Hamburguesa Doble Queso & Tocino + Papas',
-    restaurante: 'Urban Burger Grill',
+    nombre: 'Hamburguesa Especial de la Casa + Papas',
     categoria: 'Hamburguesas',
     precio: 185.0,
     descripcion: 'Carne Angus 200g, queso cheddar, tocino crujiente y papas gajo.',
     emoji: '🍔',
-    tiempoEstimado: '25-35 min',
-    calificacion: 4.8,
+    tiempoEstimado: '25-30 min',
   ),
   PlatilloMenu(
-    nombre: 'Pizza Pepperoni Familiar Orilla de Queso',
-    restaurante: 'Pizzería Bella Napoli',
+    nombre: 'Pizza Artesanal Pepperoni al Horno',
     categoria: 'Pizzas',
     precio: 220.0,
     descripcion: '8 rebanadas grandes con queso mozzarella 100% y pepperoni.',
     emoji: '🍕',
-    tiempoEstimado: '30-40 min',
-    calificacion: 4.7,
+    tiempoEstimado: '30-35 min',
   ),
   PlatilloMenu(
-    nombre: 'Rollo Sushi Dragón Crunch (10 bocados)',
-    restaurante: 'Sakura Sushi & Wok',
-    categoria: 'Oriental',
-    precio: 165.0,
-    descripcion: 'Camarón empanizado, aguacate, queso crema y salsa de anguila.',
-    emoji: '🍣',
-    tiempoEstimado: '25-35 min',
-    calificacion: 4.9,
-  ),
-  PlatilloMenu(
-    nombre: 'Alitas BBQ & Buffalo (12 piezas + Aderezo)',
-    restaurante: 'Wings & Fries Express',
-    categoria: 'Snacks',
+    nombre: 'Alitas BBQ & Buffalo (12 piezas + Ranch)',
+    categoria: 'Entradas y Snacks',
     precio: 175.0,
     descripcion: 'Acompañadas de bastones de apio, zanahoria y aderezo ranch.',
     emoji: '🍗',
-    tiempoEstimado: '20-30 min',
-    calificacion: 4.6,
+    tiempoEstimado: '20-25 min',
   ),
   PlatilloMenu(
-    nombre: 'Ensalada César con Pollo a la Parrilla',
-    restaurante: 'Green Bowl Kitchen',
-    categoria: 'Saludable',
+    nombre: 'Ensalada César con Pechuga Grill',
+    categoria: 'Ensaladas',
     precio: 145.0,
-    descripcion: 'Pechuga grill, lechuga fresca, crutones, parmesano y aderezo César.',
+    descripcion: 'Pechuga a la parrilla, lechuga fresca, crutones y parmesano.',
     emoji: '🥗',
-    tiempoEstimado: '15-25 min',
-    calificacion: 4.8,
+    tiempoEstimado: '15-20 min',
+  ),
+  PlatilloMenu(
+    nombre: 'Malteada Cremosa de Chocolate o Vainilla',
+    categoria: 'Postres y Bebidas',
+    precio: 75.0,
+    descripcion: 'Preparada con helado artesanal y crema batida.',
+    emoji: '🥤',
+    tiempoEstimado: '10-15 min',
   ),
 ];

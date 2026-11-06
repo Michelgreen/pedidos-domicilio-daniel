@@ -1,14 +1,22 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/pedido.dart';
 
-/// Servicio de gestión de pedidos de comida a domicilio.
+/// Servicio de gestión de pedidos, menú de platillos y clientes del restaurante.
 class PedidoService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _pedidosRef =>
       _db.collection('pedidos');
 
-  /// Crea un nuevo pedido y devuelve su número de orden.
+  CollectionReference<Map<String, dynamic>> get _platillosRef =>
+      _db.collection('platillos');
+
+  CollectionReference<Map<String, dynamic>> get _usuariosRef =>
+      _db.collection('usuarios');
+
+  // ==================== PEDIDOS ====================
+
+  /// Crea un nuevo pedido de un cliente.
   Future<String> registrarPedido(Pedido pedido) async {
     if (pedido.clienteNombre.trim().isEmpty ||
         pedido.telefono.trim().isEmpty ||
@@ -22,8 +30,8 @@ class PedidoService {
   }
 
   /// Obtiene la lista de pedidos en tiempo real.
-  /// - Si `esAdmin` es `true`, devuelve todos los pedidos de todos los clientes.
-  /// - Si es un cliente normal, devuelve únicamente sus propios pedidos.
+  /// - Si `esAdmin` es `true`, devuelve todos los pedidos del restaurante.
+  /// - Si es cliente, devuelve únicamente los pedidos de ese cliente.
   Stream<List<Pedido>> obtenerPedidosEnTiempoReal({
     String? usuarioId,
     bool esAdmin = false,
@@ -41,8 +49,7 @@ class PedidoService {
     });
   }
 
-  /// (Solo Admin) Actualiza el estado de entrega de una orden
-  /// ('En preparación', 'En camino', 'Entregado').
+  /// (Admin) Actualiza el estado de entrega de un pedido.
   Future<void> actualizarEstadoPedido(
     String pedidoId,
     String nuevoEstado,
@@ -53,7 +60,7 @@ class PedidoService {
     });
   }
 
-  /// (Cliente) Cancela un pedido únicamente si todavía se encuentra 'En preparación'.
+  /// (Cliente) Cancela su propio pedido solo si sigue 'En preparación'.
   Future<void> cancelarPedidoCliente(Pedido pedido) async {
     if (pedido.id == null) return;
     if (pedido.estado != 'En preparación') {
@@ -68,7 +75,7 @@ class PedidoService {
     });
   }
 
-  /// (Solo Admin) Elimina definitivamente un pedido que ya fue 'Cancelado'.
+  /// (Admin) Elimina definitivamente un pedido que ya fue 'Cancelado'.
   Future<void> eliminarPedidoCancelado(Pedido pedido) async {
     if (pedido.id == null) return;
     if (pedido.estado != 'Cancelado') {
@@ -78,5 +85,58 @@ class PedidoService {
     }
 
     await _pedidosRef.doc(pedido.id!).delete();
+  }
+
+  // ==================== MENÚ DEL RESTAURANTE ====================
+
+  /// Inicializa el menú base del restaurante si aún no hay platillos guardados.
+  Future<void> asegurarMenuInicial() async {
+    try {
+      final snap = await _platillosRef.limit(1).get();
+      if (snap.docs.isEmpty) {
+        for (final p in catalogoPlatillosInicial) {
+          await _platillosRef.add(p.toFirestore());
+        }
+      }
+    } catch (_) {
+      // Si ocurre algún error de red, la app usa catalogoPlatillosInicial como respaldo.
+    }
+  }
+
+  /// Obtiene todos los platillos del restaurante en tiempo real.
+  Stream<List<PlatilloMenu>> obtenerPlatillosEnTiempoReal() {
+    return _platillosRef.snapshots().map((snapshot) {
+      if (snapshot.docs.isEmpty) {
+        return catalogoPlatillosInicial;
+      }
+      final lista =
+          snapshot.docs.map((doc) => PlatilloMenu.fromFirestore(doc)).toList();
+      lista.sort((a, b) => a.nombre.compareTo(b.nombre));
+      return lista;
+    });
+  }
+
+  /// (Admin) Agrega un nuevo platillo al menú del restaurante.
+  Future<void> agregarPlatillo(PlatilloMenu platillo) async {
+    await _platillosRef.add(platillo.toFirestore());
+  }
+
+  /// (Admin) Elimina un platillo del menú del restaurante.
+  Future<void> eliminarPlatillo(String platilloId) async {
+    await _platillosRef.doc(platilloId).delete();
+  }
+
+  // ==================== CLIENTES REGISTRADOS (SOLO ADMIN) ====================
+
+  /// Obtiene la lista de clientes registrados en el restaurante en tiempo real.
+  Stream<List<ClienteRegistrado>> obtenerClientesRegistrados() {
+    return _usuariosRef.snapshots().map((snapshot) {
+      final todos = snapshot.docs
+          .map((doc) => ClienteRegistrado.fromFirestore(doc))
+          .where((u) => u.rol != 'admin')
+          .toList();
+      todos.sort((a, b) => b.fechaRegistro.compareTo(a.fechaRegistro));
+      return todos;
+    });
   }
 }
