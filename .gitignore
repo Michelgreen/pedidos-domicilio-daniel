@@ -49,3 +49,6 @@ firebase_env.json
 android/key.properties
 *.jks
 *.keystore
+
+# Archivos locales de Firebase CLI
+.firebase/

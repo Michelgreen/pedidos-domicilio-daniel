@@ -13,7 +13,7 @@ class DefaultFirebaseOptions {
     'FIREBASE_API_KEY',
     defaultValue: 'AIzaSyDZ1UjvRsMW7eMz-TTujFix-Ro_UftnaSg',
   );
-  static const String _appId = String.fromEnvironment(
+  static const String _webAppId = String.fromEnvironment(
     'FIREBASE_APP_ID',
     defaultValue: '1:410979282648:web:2e5f3d228d70459b3931ad',
   );
@@ -24,10 +24,6 @@ class DefaultFirebaseOptions {
   static const String _projectId = String.fromEnvironment(
     'FIREBASE_PROJECT_ID',
     defaultValue: 'pedidos-domicilio-daniel',
-  );
-  static const String _authDomain = String.fromEnvironment(
-    'FIREBASE_AUTH_DOMAIN',
-    defaultValue: 'pedidos-domicilio-daniel.firebaseapp.com',
   );
   static const String _storageBucket = String.fromEnvironment(
     'FIREBASE_STORAGE_BUCKET',
@@ -55,25 +51,24 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: _apiKey,
-    appId: _appId,
-    messagingSenderId: _messagingSenderId,
-    projectId: _projectId,
-    authDomain: _authDomain,
-    storageBucket: _storageBucket,
+    apiKey: 'AIzaSyDZ1UjvRsMW7eMz-TTujFix-Ro_UftnaSg',
+    appId: '1:410979282648:web:2e5f3d228d70459b3931ad',
+    messagingSenderId: '410979282648',
+    projectId: 'pedidos-domicilio-daniel',
+    authDomain: 'pedidos-domicilio-daniel.firebaseapp.com',
+    storageBucket: 'pedidos-domicilio-daniel.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: _apiKey,
-    appId: _appId,
-    messagingSenderId: _messagingSenderId,
-    projectId: _projectId,
-    storageBucket: _storageBucket,
+    apiKey: 'AIzaSyAKS2oUeEHoFQlCTHr4Wt-z8--TLeY6s74',
+    appId: '1:410979282648:android:bcde62f5f1c099913931ad',
+    messagingSenderId: '410979282648',
+    projectId: 'pedidos-domicilio-daniel',
+    storageBucket: 'pedidos-domicilio-daniel.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: _apiKey,
-    appId: _appId,
+    appId: _webAppId,
     messagingSenderId: _messagingSenderId,
     projectId: _projectId,
     storageBucket: _storageBucket,

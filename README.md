@@ -1,4 +1,4 @@
-# 🍔 CruzVerde Delivery - Aplicación de Pedidos de Comida a Domicilio
+# 🍔 ProntoBite Delivery - Aplicación de Pedidos de Comida a Domicilio
 
 **Alumno:** Daniel Michel Cruz Verde  
 **Materia:** Desarrollo Móvil Integral (Remedial del Segundo Parcial – SABER HACER)  
@@ -9,7 +9,7 @@
 
 ## 📋 Descripción del Proyecto
 
-**CruzVerde Delivery** es una aplicación móvil y multiplataforma desarrollada desde cero con **Flutter**, integrada en tiempo real con **Firebase Cloud Firestore** como base de datos en la nube. Permite consultar el menú de platillos destacados, registrar pedidos de comida a domicilio con validación estricta de datos y visualizar/actualizar el estado de los pedidos en tiempo real.
+**ProntoBite Delivery** es una aplicación móvil y multiplataforma desarrollada desde cero con **Flutter**, integrada en tiempo real con **Firebase Cloud Firestore** como base de datos en la nube. Permite consultar el menú de platillos destacados, registrar pedidos de comida a domicilio con validación estricta de datos y visualizar/actualizar el estado de los pedidos en tiempo real.
 
 ---
 
@@ -18,12 +18,13 @@
 ### 1. Creación y configuración del proyecto (10%)
 - Proyecto inicializado con `flutter create --org com.danielcruz pedidos_domicilio_daniel`.
 - Estructura modular organizada en `lib/config`, `lib/models`, `lib/services` y `lib/screens`.
-- Dependencias oficiales configuradas en `pubspec.yaml`: `firebase_core`, `cloud_firestore`, `intl`.
+- Dependencias oficiales configuradas en `pubspec.yaml`: `firebase_core`, `cloud_firestore`, `firebase_auth`, `intl`.
 
 ### 2. Diseño de interfaces (10%)
+- **Acceso (AuthScreen):** Registro e inicio de sesión con correo y contraseña mediante Firebase Authentication.
 - **Pantalla Principal (`HomeScreen`):** Encabezado con estado de conexión en vivo, métricas en tiempo real (total de pedidos en BD, pedidos en curso y ventas totales) y catálogo interactivo de platillos.
 - **Formulario de Registro (`FormularioPedidoScreen`):** Selección de platillo, control de cantidad, datos del cliente, teléfono, dirección, método de pago y cálculo automático de subtotal + envío.
-- **Apartado de Visualización (`ListaPedidosScreen`):** Consulta en tiempo real mediante `StreamBuilder`, filtros por estado (`En preparación`, `En camino`, `Entregado`), folio único de Firestore, cambio de estado y eliminación.
+- **Apartado de Visualización (`ListaPedidosScreen`):** Consulta en tiempo real, filtros por estado y controles según rol.\n- **Panel del restaurante:** Administración de pedidos, menú y clientes; su acceso se valida con la cuenta admin verificada.
 
 ### 3. Conexión a servicios en la nube (20%)
 - Proyecto en Firebase Console: **`pedidos-domicilio-daniel`**.
@@ -55,7 +56,7 @@
   ```bash
   flutter build web --release
   ```
-  La carpeta `build/web` se despliega en Firebase Hosting / GitHub Pages / Netlify para obtener la URL pública e instalarla en iOS desde Safari (*Compartir -> Agregar a pantalla de inicio*).
+  La carpeta `build/web` se despliega en Firebase Hosting para obtener la URL pública e instalarla en iOS desde Safari (*Compartir -> Agregar a pantalla de inicio*).
 
 ---
 
@@ -79,3 +80,11 @@
    ```bash
    flutter build apk --release
    ```
+
+## Configuración de Firebase requerida
+
+- Registra la app Android con paquete com.danielcruz.pedidos_domicilio_daniel y configura Android y Web en el proyecto Firebase.
+- Ejecuta dart pub global activate flutterfire_cli y después flutterfire configure --project=pedidos-domicilio-daniel --platforms=android,web --out=lib/config/firebase_options.dart para generar opciones correctas por plataforma.
+- Habilita Correo/contraseña en Authentication. Crea y verifica desde Firebase Console la cuenta michelcv.ti23@utsjr.edu.mx; el código no contiene contraseña de administrador.
+- Despliega las reglas revisadas con firebase deploy --only firestore:rules --project pedidos-domicilio-daniel.
+- El workflow compila y sube artefactos a GitHub Actions; Hosting se publica por separado. firebase.json ya apunta a build/web y asocia las reglas de Firestore.

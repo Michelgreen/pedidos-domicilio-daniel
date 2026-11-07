@@ -24,7 +24,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _pedidoService.asegurarMenuInicial();
+    if (_authService.esAdmin) {
+      _pedidoService.asegurarMenuInicial();
+    }
   }
 
   void _irAFormularioConPlatillo(PlatilloMenu platillo) {

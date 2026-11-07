@@ -36,14 +36,17 @@ class PedidoService {
     String? usuarioId,
     bool esAdmin = false,
   }) {
-    return _pedidosRef.snapshots().map((snapshot) {
-      var lista =
-          snapshot.docs.map((doc) => Pedido.fromFirestore(doc)).toList();
-
-      if (!esAdmin && usuarioId != null && usuarioId.isNotEmpty) {
-        lista = lista.where((p) => p.usuarioId == usuarioId).toList();
+    Query<Map<String, dynamic>> consulta = _pedidosRef;
+    if (!esAdmin) {
+      if (usuarioId == null || usuarioId.isEmpty) {
+        return Stream.value(const <Pedido>[]);
       }
+      consulta = consulta.where('usuarioId', isEqualTo: usuarioId);
+    }
 
+    return consulta.snapshots().map((snapshot) {
+      final lista =
+          snapshot.docs.map((doc) => Pedido.fromFirestore(doc)).toList();
       lista.sort((a, b) => b.fechaCreacion.compareTo(a.fechaCreacion));
       return lista;
     });

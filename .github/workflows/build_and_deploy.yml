@@ -1,4 +1,4 @@
-name: Build APK & Deploy Web
+name: Build APK and Web Artifacts
 
 on:
   push:

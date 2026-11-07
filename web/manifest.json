@@ -1,6 +1,6 @@
 {
-    "name": "pedidos_domicilio_daniel",
-    "short_name": "pedidos_domicilio_daniel",
+    "name": "ProntoBite Delivery",
+    "short_name": "ProntoBite",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

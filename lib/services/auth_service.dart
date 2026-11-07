@@ -18,7 +18,8 @@ class AuthService {
   /// Verifica si el usuario actual tiene rol de Administrador.
   bool get esAdmin {
     final correo = _auth.currentUser?.email?.trim().toLowerCase() ?? '';
-    return correo == adminEmail.toLowerCase();
+    return correo == adminEmail.toLowerCase() &&
+        (_auth.currentUser?.emailVerified ?? false);
   }
 
   /// Iniciar sesión con correo y contraseña.
@@ -34,22 +35,7 @@ class AuthService {
         email: correoLimpio,
         password: password,
       );
-    } on FirebaseAuthException catch (e) {
-      // Auto-provisionamiento de la cuenta Admin en su primer inicio de sesión
-      if (correoLimpio.toLowerCase() == adminEmail.toLowerCase() &&
-          password == 'Skrillex' &&
-          (e.code == 'user-not-found' || e.code == 'invalid-credential')) {
-        try {
-          return await registrarUsuario(
-            nombre: 'Administrador ProntoBite',
-            telefono: '4271234567',
-            correo: adminEmail,
-            password: password,
-          );
-        } catch (_) {
-          rethrow;
-        }
-      }
+    } on FirebaseAuthException {
       rethrow;
     }
   }
@@ -70,9 +56,9 @@ class AuthService {
     await credencial.user?.updateDisplayName(nombre.trim());
 
     if (credencial.user != null) {
-      final rol = correoLimpio.toLowerCase() == adminEmail.toLowerCase()
-          ? 'admin'
-          : 'cliente';
+      // El rol de administrador no se asigna desde el cliente. La autorización
+      // de admin se valida con el correo verificado en las reglas de Firestore.
+      const rol = 'cliente';
 
       await _db.collection('usuarios').doc(credencial.user!.uid).set({
         'uid': credencial.user!.uid,

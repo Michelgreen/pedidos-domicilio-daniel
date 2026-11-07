@@ -63,7 +63,8 @@ service cloud.firestore {
     // Check if the authenticated user is the restaurant administrator
     function isAdmin() {
       return isAuthenticated() &&
-        request.auth.token.email == 'michelcv.ti23@utsjr.edu.mx';
+        request.auth.token.email == 'michelcv.ti23@utsjr.edu.mx' &&
+        request.auth.token.email_verified == true;
     }
 
     // Check if user owns the resource (for user-owned documents)
@@ -289,9 +290,8 @@ service cloud.firestore {
       // Authenticated users can view the restaurant menu
       allow read: if isAuthenticated();
 
-      // Allow creating menu items for initial seeding by authenticated users or by the administrator
-      allow create: if (isAdmin() || isAuthenticated()) &&
-        isValidPlatillo(request.resource.data);
+      // Only the verified restaurant administrator can change the menu.
+      allow create: if isAdmin() && isValidPlatillo(request.resource.data);
 
       // Only the restaurant administrator can update or delete menu items
       allow update: if isAdmin() && isValidPlatillo(request.resource.data);
@@ -302,8 +302,9 @@ service cloud.firestore {
     // Collection Rules: /pedidos/{pedidoId}
     // ===============================================================
     match /pedidos/{pedidoId} {
-      // Allow authenticated users (Admin and Clients) to read orders
-      allow read: if isAuthenticated();
+      // Clients can read only their own orders; the verified admin can read all.
+      allow read: if isAdmin() ||
+        (isAuthenticated() && resource.data.usuarioId == request.auth.uid);
 
       // Allow authenticated users to create new orders only with initial state 'En preparación'
       allow create: if isAuthenticated() &&

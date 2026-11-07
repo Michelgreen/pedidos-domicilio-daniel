@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "410979282648",
+    "project_id": "pedidos-domicilio-daniel",
+    "storage_bucket": "pedidos-domicilio-daniel.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:410979282648:android:bcde62f5f1c099913931ad",
+        "android_client_info": {
+          "package_name": "com.danielcruz.pedidos_domicilio_daniel"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAKS2oUeEHoFQlCTHr4Wt-z8--TLeY6s74"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
